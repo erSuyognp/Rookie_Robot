@@ -1,0 +1,618 @@
+<title>Rookie 23 CAD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a drafting sheet (the 3D stage, with its title block) beside an inspector rail; they stack on phones. */
+:root {
+  --paper: #E7EAED;
+  --sheet: #F5F6F7;
+  --panel: #FCFCFD;
+  --ink: #1B1E22;
+  --muted: #59606A;
+  --line: #CDD2D8;
+  --grid: rgba(52, 72, 96, 0.07);
+  --accent: #E25A14;
+  --accent-ink: #AE420B;
+  --signal: #1590C6;
+  --chip: #EDEFF2;
+  --shadow-op: 0.18;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101316; --sheet: #161A1E; --panel: #1A1F24; --ink: #E6E9ED; --muted: #9AA2AC;
+    --line: #2C333A; --grid: rgba(160, 180, 200, 0.06); --accent: #FF7A33; --accent-ink: #FF8C4D;
+    --signal: #3EC6FF; --chip: #222830; --shadow-op: 0.42; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #101316; --sheet: #161A1E; --panel: #1A1F24; --ink: #E6E9ED; --muted: #9AA2AC;
+  --line: #2C333A; --grid: rgba(160, 180, 200, 0.06); --accent: #FF7A33; --accent-ink: #FF8C4D;
+  --signal: #3EC6FF; --chip: #222830; --shadow-op: 0.42; color-scheme: dark;
+}
+html { box-sizing: border-box; height: 100%; }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  height: 100%; margin: 0; background: var(--paper); color: var(--ink);
+  font: 15px/1.5 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px;
+}
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; }
+
+/* stage: the drawing sheet */
+.stage {
+  position: relative; min-height: 0; min-width: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 6px;
+  background-color: var(--sheet);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#c:active { cursor: grabbing; }
+.stage-head { position: absolute; top: 18px; left: 20px; right: 20px; pointer-events: none; display: grid; gap: 6px; }
+.eyebrow { margin: 0; font: 600 12px/1 var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }
+h1 { margin: 0; font: 700 44px/0.95 var(--f-display); letter-spacing: 0.01em; text-transform: uppercase; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 34ch; }
+.specs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.spec {
+  font: 500 12px/1 var(--f-mono); font-variant-numeric: tabular-nums; padding: 5px 8px;
+  border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); color: var(--ink);
+}
+.views { position: absolute; left: 16px; bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 32px); }
+.btn {
+  font: 600 13px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--panel); color: var(--ink); cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.btn:focus-visible, .layer:focus-visible, input:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+/* title block, as on a drawing sheet */
+.tb { position: absolute; right: 16px; bottom: 16px; border-collapse: collapse; background: var(--sheet); font: 500 10.5px/1.2 var(--f-mono); font-variant-numeric: tabular-nums; }
+.tb th, .tb td { border: 1px solid var(--ink); padding: 4px 7px; text-align: left; }
+.tb th { font-weight: 400; color: var(--muted); letter-spacing: 0.06em; }
+.loading {
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  font: 600 14px var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+}
+.tip {
+  position: absolute; z-index: 3; pointer-events: none; padding: 5px 8px; border-radius: 3px;
+  background: var(--ink); color: var(--panel); font: 500 12px/1.2 var(--f-body); white-space: nowrap;
+}
+
+/* inspector rail */
+.panel {
+  min-height: 0; min-width: 0; overflow-y: auto; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column;
+}
+.sec { padding: 18px 20px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.sec:last-child { border-bottom: 0; }
+.label { margin: 0; font: 600 12px/1 var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ins-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 3px;
+  background: var(--chip); font: 600 12px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.chip-print { color: var(--accent-ink); }
+.chip-buy { color: var(--signal); }
+.chip-owned { color: var(--muted); }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: var(--sw); border: 1px solid var(--line); flex: none; }
+.ins-title { margin: 2px 0 0; font: 700 28px/1.05 var(--f-display); text-wrap: balance; }
+.ins-type { margin: 0; font-weight: 600; }
+.ins-note { margin: 0; color: var(--muted); }
+.facts { margin: 4px 0 0; display: grid; gap: 0; }
+.facts div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 6px 0; border-top: 1px dashed var(--line); }
+.facts dt { color: var(--muted); font-size: 13px; }
+.facts dd { margin: 0; font: 500 13px/1.45 var(--f-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.layers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.layer {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; row-gap: 2px;
+  text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--panel); color: var(--ink); cursor: pointer; font: inherit;
+}
+.layer .ln { font: 600 14px/1.1 var(--f-display); letter-spacing: 0.03em; }
+.layer .lc { grid-column: 2; font-size: 12px; color: var(--muted); line-height: 1.2; }
+.layer[aria-pressed="false"] { opacity: 0.45; }
+.layer[aria-pressed="false"] .sw { background: transparent; }
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 500; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.slider { display: grid; grid-template-columns: auto minmax(0, 1fr) 44px; align-items: center; gap: 12px; }
+.slider label { font-weight: 500; }
+.slider input { width: 100%; accent-color: var(--accent); margin: 0; }
+.slider output { font: 500 12px var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); }
+
+.jm { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.jm th { text-align: left; font: 600 12px var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0 8px 6px 0; }
+.jm td { padding: 7px 8px 7px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.jm td:nth-child(2) { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; padding-right: 14px; }
+.jm tfoot td { font-weight: 600; }
+.issues { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; }
+.issues li::marker { color: var(--accent); }
+.issues b { font-weight: 600; }
+.foot { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+@media (max-width: 880px) {
+  html, body { height: auto; }
+  .app { display: flex; flex-direction: column; height: auto; }
+  .stage { height: 68vh; min-height: 420px; }
+  .panel { overflow: visible; }
+  h1 { font-size: 36px; }
+}
+@media (max-width: 620px) {
+  .tb { display: none; }
+  .lede { display: none; }
+  .layers { grid-template-columns: 1fr; }
+}
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="3D model of the Rookie 23 humanoid">
+    <canvas id="c"></canvas>
+    <div class="stage-head">
+      <p class="eyebrow">Rookie Lab · CAD assembly</p>
+      <h1>Rookie 23</h1>
+      <p class="lede">23 DOF humanoid built on rope capstan joints, for under $2,000.</p>
+      <div class="specs">
+        <span class="spec">1015 mm tall</span>
+        <span class="spec">23 DOF</span>
+        <span class="spec">226 parts</span>
+        <span class="spec">53 printed</span>
+        <span class="spec">$1,738.79 BOM</span>
+      </div>
+    </div>
+    <div class="views" role="group" aria-label="Camera view">
+      <button class="btn" type="button" data-view="three" aria-pressed="true">¾</button>
+      <button class="btn" type="button" data-view="front" aria-pressed="false">Front</button>
+      <button class="btn" type="button" data-view="side" aria-pressed="false">Side</button>
+      <button class="btn" type="button" data-view="back" aria-pressed="false">Back</button>
+    </div>
+    <table class="tb" aria-label="Drawing title block">
+      <tr><th>DWG</th><td>ROOKIE-23-ASM</td><th>REV</th><td>D</td></tr>
+      <tr><th>UNITS</th><td>mm</td><th>MASS</th><td>≈7.9 kg</td></tr>
+      <tr><th>DATE</th><td>2026-10-16</td><th>DOF</th><td>23</td></tr>
+    </table>
+    <div class="loading" id="loading">Loading model <span id="pct"></span></div>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <aside class="panel">
+    <section class="sec" id="inspect" aria-live="polite">
+      <p class="label">Inspect</p>
+      <div class="ins-chips"><span class="chip chip-print">Printed</span><span class="chip"><i class="sw" style="--sw:#F26B21"></i>Rope drum</span></div>
+      <h2 class="ins-title">Differential drum 1, left</h2>
+      <p class="ins-type">Rope drum, hip pitch and knee differential</p>
+      <p class="ins-note">Ø86 × 14 mm, 27:1 total (3:1 belt × 9:1 rope). Printed in PETG-CF.</p>
+      <dl class="facts">
+        <div><dt>On the robot</dt><dd>4</dd></div>
+        <div><dt>Material</dt><dd>PETG-CF</dd></div>
+        <div><dt>Print size</dt><dd>93 × 93 × 14 mm</dd></div>
+        <div><dt>Weight, est.</dt><dd>51 g each</dd></div>
+      </dl>
+    </section>
+
+    <section class="sec">
+      <p class="label">Show</p>
+      <div class="layers" id="layers">
+        <button class="layer" type="button" data-cat="shells" aria-pressed="true"><i class="sw" style="--sw:#ECEAE4"></i><span class="ln">Body shells</span><span class="lc">PETG, white</span></button>
+        <button class="layer" type="button" data-cat="frame" aria-pressed="true"><i class="sw" style="--sw:#3A3D42"></i><span class="ln">Frame and pods</span><span class="lc">PETG-CF</span></button>
+        <button class="layer" type="button" data-cat="drums" aria-pressed="true"><i class="sw" style="--sw:#F26B21"></i><span class="ln">Rope drums</span><span class="lc">15 drums, PETG-CF</span></button>
+        <button class="layer" type="button" data-cat="rope" aria-pressed="true"><i class="sw" style="--sw:#F7F5EE"></i><span class="ln">Dyneema rope</span><span class="lc">2 mm SK78</span></button>
+        <button class="layer" type="button" data-cat="actuators" aria-pressed="true"><i class="sw" style="--sw:#17181A"></i><span class="ln">Motors and servos</span><span class="lc">12 motors, 11 servos</span></button>
+        <button class="layer" type="button" data-cat="electronics" aria-pressed="true"><i class="sw" style="--sw:#1F6F4A"></i><span class="ln">Electronics</span><span class="lc">6 FOC boards, Pi 5</span></button>
+      </div>
+      <label class="switch" for="xray"><input type="checkbox" id="xray"> X-ray the shells and pods</label>
+      <div class="slider"><label for="explode">Explode</label><input type="range" id="explode" min="0" max="100" value="0"><output id="explodeOut" for="explode">0%</output></div>
+      <div class="row"><button class="btn" type="button" id="reset">Reset</button></div>
+    </section>
+
+    <section class="sec">
+      <p class="label">Joint map</p>
+      <table class="jm">
+        <thead><tr><th>Region</th><th>DOF</th><th>Drive</th></tr></thead>
+        <tbody>
+          <tr><td>Legs</td><td>12</td><td>5010 motor, 3:1 GT2 belt, rope drum. 18:1 to 27:1</td></tr>
+          <tr><td>Waist</td><td>1</td><td>ST3215 servo, 3:1 rope capstan</td></tr>
+          <tr><td>Arms</td><td>10</td><td>ST3215 servos, direct</td></tr>
+        </tbody>
+        <tfoot><tr><td>Total</td><td>23</td><td></td></tr></tfoot>
+      </table>
+    </section>
+
+    <section class="sec">
+      <p class="label">Open issues</p>
+      <ul class="issues">
+        <li><b>Arm too long for the shoulder servo.</b> As drawn, the shoulder sees about 1.68 Nm, against 1.371 Nm in the hand calc. That is 57% of the ST3215 stall, above the 50% rule. Fix with a shorter arm or a 2:1 rope stage at the shoulder.</li>
+        <li><b>Belt stages not modelled.</b> The 20T to 60T GT2 stage before each leg drum still needs pulleys and covers.</li>
+        <li><b>Knee bend stops near 80°.</b> Beyond that the calf pod meets the thigh shell. A deeper squat needs a slimmer or lower calf pod. The knee and ankle are now pinned clevis joints with no overlapping parts.</li>
+        <li><b>Filament.</b> The graphite parts and drums need about 2.2 kg of PETG-CF. The BOM buys 1 kg.</li>
+      </ul>
+    </section>
+
+    <section class="sec">
+      <p class="foot">Prices from the lab's bill of materials (October 2026). Weights assume 1.2 mm walls and 30% infill. The design passed its gates in simulation only; nothing is bench tested yet. Drag to orbit, scroll or pinch to zoom, click a part to inspect it.</p>
+    </section>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (id) => document.getElementById(id);
+const stage = $('stage'), canvas = $('c'), tip = $('tip');
+
+const CAT = {
+  shells: { kicker: 'Body shell', sw: '#ECEAE4' },
+  frame: { kicker: 'Frame and pods', sw: '#3A3D42' },
+  drums: { kicker: 'Rope drum', sw: '#F26B21' },
+  rope: { kicker: 'Rope', sw: '#F7F5EE' },
+  actuators: { kicker: 'Actuator', sw: '#17181A' },
+  electronics: { kicker: 'Electronics', sw: '#1F6F4A' },
+};
+const MAKE = { buy: 'Bought', print: 'Printed', owned: 'Owned' };
+const XRAY_EXTRA = new Set(['pelvis_shell', 'pelvis_top', 'hip_housing', 'hip_motor_pod', 'calf_pod',
+  'back_vent_plate', 'elbow_block', 'chest_light_bar', 'eye_bar']);
+const DEFAULT = { type: 'drum_86x14', group: 'diff_drum_1_L' };
+const family = (t) => t.replace(/_(bell|base|band|shaft|body|horn|hub)$/, '').replace(/^estop_cap$/, 'estop');
+
+/* renderer and scene */
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000, 0);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.85;
+
+const camera = new THREE.PerspectiveCamera(30, 1, 0.02, 40);
+camera.position.set(2, 1, -1.6);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 0.35;
+controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI * 0.54;
+controls.autoRotate = false;
+controls.autoRotateSpeed = 0.6;
+
+const key = new THREE.DirectionalLight(0xffffff, 1.7);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -1, right: 1, top: 1.2, bottom: -1, near: 0.5, far: 8 });
+key.shadow.camera.updateProjectionMatrix();
+key.shadow.bias = -0.0004;
+key.shadow.normalBias = 0.01;
+scene.add(key, key.target, new THREE.HemisphereLight(0xffffff, 0x8a8f96, 0.35));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const signal = new THREE.Color('#1590C6');
+function syncTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  ground.material.opacity = parseFloat(cs.getPropertyValue('--shadow-op')) || 0.18;
+  const s = cs.getPropertyValue('--signal').trim();
+  if (s) signal.set(s);
+  if (sel) highlight();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+new MutationObserver(syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+/* views */
+const TARGET = new THREE.Vector3(0, 0.5, 0);
+const SIZE = new THREE.Vector3(0.25, 1, 0.45);
+const VIEWS = { three: [-38, 12], front: [0, 5], side: [-90, 5], back: [180, 5] };
+const CENTER = new THREE.Vector3(0, 0.5, 0);
+/* Fit the robot into the band between the title overlay and the view buttons. */
+function frameView() {
+  const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const sh = Math.max(1, stage.clientHeight);
+  const top = Math.min(0.45, (document.querySelector('.stage-head').offsetHeight + 28) / sh);
+  const bottom = Math.min(0.2, 64 / sh);
+  const V = Math.max((SIZE.y * 1.06) / (1 - top - bottom), (Math.max(SIZE.x, SIZE.z) * 1.3) / camera.aspect);
+  TARGET.set(CENTER.x, CENTER.y + ((top - bottom) / 2) * V, CENTER.z);
+  return V / (2 * t);
+}
+function viewPos(name) {
+  const [az, el] = VIEWS[name].map(THREE.MathUtils.degToRad);
+  const d = frameView();
+  return new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az))
+    .multiplyScalar(d).add(TARGET);
+}
+const viewBtns = [...document.querySelectorAll('[data-view]')];
+function setPressed(name) { viewBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === name))); }
+let tween = null;
+function goView(name, instant = false) {
+  setPressed(name);
+  controls.autoRotate = false;
+  const p1 = viewPos(name), q1 = TARGET.clone();
+  if (instant || reduced) { camera.position.copy(p1); controls.target.copy(q1); controls.update(); tween = null; return; }
+  const q0 = controls.target.clone();
+  const s0 = new THREE.Spherical().setFromVector3(camera.position.clone().sub(q0));
+  const s1 = new THREE.Spherical().setFromVector3(p1.clone().sub(q1));
+  let dt = s1.theta - s0.theta;
+  dt = ((dt + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  tween = { t0: performance.now(), dur: 750, s0, s1, dt, q0, q1 };
+}
+viewBtns.forEach((b) => b.addEventListener('click', () => goView(b.dataset.view)));
+controls.addEventListener('start', () => { controls.autoRotate = false; tween = null; setPressed(null); });
+const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+
+/* model state */
+let data = null, meshes = [], sel = null, xray = false, explode = 0, lift = 0, model = null;
+const hidden = {};
+const groups = new Map();
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function highlight() {
+  const fam = sel ? family(sel.type) : null;
+  for (const m of meshes) {
+    const u = m.userData;
+    if (fam && family(u.type) === fam) {
+      m.material.color.copy(signal);
+      m.material.emissive.copy(signal);
+      m.material.emissiveIntensity = u.group === sel.group ? 0.45 : 0.12;
+    } else {
+      m.material.color.copy(u.col);
+      m.material.emissive.copy(u.em);
+      m.material.emissiveIntensity = u.ei;
+    }
+  }
+}
+
+function renderInspector() {
+  const el = $('inspect');
+  if (!sel) {
+    el.innerHTML = '<p class="label">Inspect</p><h2 class="ins-title">Click any part</h2>' +
+      '<p class="ins-note">Every one of the 226 parts is selectable. This panel shows what it is, whether you print or buy it, and what it costs. All copies of the part light up on the model.</p>';
+    return;
+  }
+  const t = data.types[sel.type];
+  const g = groups.get(sel.group);
+  let title = g ? g[0].userData.glabel : t.label;
+  if (t.cat === 'rope' && /drum/i.test(title)) title = 'Rope wrap, ' + title.charAt(0).toLowerCase() + title.slice(1);
+  const facts = [['On the robot', String(t.count)]];
+  if (t.make === 'print') {
+    facts.push(['Material', t.material]);
+    if (t.size) facts.push(['Print size', t.size.map((v) => Math.round(v)).join(' × ') + ' mm']);
+    if (t.grams != null) facts.push(['Weight, est.', t.grams + ' g each']);
+  } else if (t.make === 'buy') {
+    if (t.price != null) facts.push(['Unit price', '$' + t.price.toFixed(2)]);
+    if (t.src) facts.push(['Price source', t.src]);
+    if (t.price == null && !t.src) facts.push(['Price', 'Not in the BOM']);
+  } else {
+    facts.push(['Status', 'Already owned']);
+  }
+  const c = CAT[t.cat];
+  el.innerHTML = `<p class="label">Inspect</p>
+    <div class="ins-chips"><span class="chip chip-${t.make}">${MAKE[t.make]}</span><span class="chip"><i class="sw" style="--sw:${c.sw}"></i>${c.kicker}</span></div>
+    <h2 class="ins-title">${esc(title)}</h2>
+    <p class="ins-type">${esc(t.label)}</p>
+    ${t.note ? `<p class="ins-note">${esc(t.note)}</p>` : ''}
+    <dl class="facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+}
+
+function select(type, group) {
+  sel = type ? { type, group } : null;
+  highlight();
+  renderInspector();
+}
+
+function applyVisibility() { for (const m of meshes) m.visible = !hidden[m.userData.cat]; }
+function applyXray() {
+  for (const m of meshes) {
+    const f = xray && m.userData.xr;
+    m.material.transparent = f;
+    m.material.opacity = f ? 0.1 : 1;
+    m.material.depthWrite = !f;
+    m.castShadow = !f;
+    m.material.needsUpdate = true;
+  }
+}
+function applyExplode() {
+  for (const m of meshes) m.position.copy(m.userData.home).addScaledVector(m.userData.dir, explode);
+  if (model) model.position.y = lift * explode;
+}
+
+/* panel controls */
+document.querySelectorAll('.layer').forEach((b) => b.addEventListener('click', () => {
+  const on = b.getAttribute('aria-pressed') !== 'true';
+  b.setAttribute('aria-pressed', String(on));
+  hidden[b.dataset.cat] = !on;
+  applyVisibility();
+}));
+$('xray').addEventListener('change', (e) => { xray = e.target.checked; applyXray(); });
+$('explode').addEventListener('input', (e) => {
+  explode = e.target.value / 100;
+  $('explodeOut').textContent = e.target.value + '%';
+  applyExplode();
+});
+$('reset').addEventListener('click', () => {
+  document.querySelectorAll('.layer').forEach((b) => { b.setAttribute('aria-pressed', 'true'); hidden[b.dataset.cat] = false; });
+  $('xray').checked = false; xray = false;
+  $('explode').value = 0; explode = 0; $('explodeOut').textContent = '0%';
+  applyVisibility(); applyXray(); applyExplode();
+  if (data) select(DEFAULT.type, DEFAULT.group);
+  goView('three');
+});
+
+/* picking */
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function pick(ev) {
+  if (!meshes.length) return null;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const cands = meshes.filter((m) => m.visible && !(xray && m.userData.xr));
+  const hit = ray.intersectObjects(cands, false)[0];
+  return hit ? hit.object : null;
+}
+let down = null, hoverEv = null;
+canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; tip.hidden = true; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+  down = null;
+  if (moved > 6 || !data) return;
+  const m = pick(e);
+  if (m) select(m.userData.type, m.userData.group); else select(null);
+});
+canvas.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && !down) hoverEv = e; });
+canvas.addEventListener('pointerleave', () => { hoverEv = null; tip.hidden = true; });
+function hover() {
+  const e = hoverEv; hoverEv = null;
+  const m = pick(e);
+  if (!m) { tip.hidden = true; canvas.style.cursor = ''; return; }
+  canvas.style.cursor = 'pointer';
+  tip.textContent = m.userData.glabel;
+  tip.hidden = false;
+  const r = stage.getBoundingClientRect();
+  const x = Math.min(e.clientX - r.left + 14, r.width - tip.offsetWidth - 8);
+  const y = Math.min(e.clientY - r.top + 16, r.height - tip.offsetHeight - 8);
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+
+/* loop */
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (tween) {
+    const k = ease(Math.min(1, (now - tween.t0) / tween.dur));
+    const s = new THREE.Spherical(
+      THREE.MathUtils.lerp(tween.s0.radius, tween.s1.radius, k),
+      THREE.MathUtils.lerp(tween.s0.phi, tween.s1.phi, k),
+      tween.s0.theta + tween.dt * k);
+    controls.target.lerpVectors(tween.q0, tween.q1, k);
+    camera.position.setFromSpherical(s).add(controls.target);
+    if (k >= 1) tween = null;
+  }
+  controls.update();
+  if (hoverEv) hover();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+/* load */
+async function load() {
+  const pct = $('pct');
+  const dataP = fetch('rookie23_viewer.json').then((r) => { if (!r.ok) throw new Error('parts list ' + r.status); return r.json(); });
+  /* the model ships as base64 text (artifacts serve text, not .glb) */
+  const glbP = (async () => {
+    const r = await fetch('rookie23_web.glb.txt');
+    if (!r.ok) throw new Error('model ' + r.status);
+    const total = +r.headers.get('content-length') || 0;
+    let text;
+    if (r.body && total) {
+      const reader = r.body.getReader(), chunks = [];
+      let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value); got += value.length;
+        pct.textContent = Math.min(100, Math.round((got / total) * 100)) + '%';
+      }
+      text = new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
+    } else {
+      text = await r.text();
+    }
+    const bin = atob(text.trim());
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Promise((res, rej) => new GLTFLoader().parse(buf.buffer, '', res, rej));
+  })();
+  const [d, gltf] = await Promise.all([dataP, glbP]);
+  data = d;
+  model = gltf.scene;
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    const name = o.name in data.parts ? o.name : (o.parent && o.parent.name in data.parts ? o.parent.name : null);
+    if (!name) return;
+    const [type, group, glabel] = data.parts[name];
+    const t = data.types[type];
+    o.material = o.material.clone();
+    o.castShadow = true;
+    o.receiveShadow = true;
+    o.userData = {
+      name, type, group, glabel, cat: t.cat,
+      xr: t.cat === 'shells' || XRAY_EXTRA.has(type),
+      col: o.material.color.clone(), em: o.material.emissive.clone(), ei: o.material.emissiveIntensity,
+      home: o.position.clone(), dir: new THREE.Vector3(),
+    };
+    meshes.push(o);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(o);
+  });
+  scene.add(model);
+  model.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  box.getSize(SIZE);
+  ground.position.y = box.min.y;
+  CENTER.set(center.x, box.min.y + SIZE.y * 0.5, center.z);
+  TARGET.copy(CENTER);
+  key.target.position.copy(CENTER);
+  key.position.copy(TARGET).add(new THREE.Vector3(1.4, 2.6, 1.2));
+
+  let minDy = 0;
+  for (const list of groups.values()) {
+    const b = new THREE.Box3();
+    list.forEach((m) => b.expandByObject(m));
+    const d = b.getCenter(new THREE.Vector3()).sub(center);
+    const dir = new THREE.Vector3(d.x * 1.3, d.y * 0.55, d.z * 1.7);
+    minDy = Math.min(minDy, dir.y);
+    list.forEach((m) => m.userData.dir.copy(dir));
+  }
+  lift = -minDy;
+
+  $('loading').hidden = true;
+  syncTheme();
+  applyVisibility(); applyXray(); applyExplode();
+  select(DEFAULT.type, DEFAULT.group);
+  goView('three', true);
+  controls.autoRotate = !reduced;
+}
+load().catch((err) => {
+  console.error(err);
+  $('loading').textContent = 'The model did not load. Reload the page to try again.';
+});
+</script>
